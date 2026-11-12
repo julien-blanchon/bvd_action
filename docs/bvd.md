@@ -1,21 +1,61 @@
-# BVD action filtering
+# BVD action classification
 
-The BVD adapter asks whether a clip shows **substantial, goal-directed physical action in the real world**: a person doing a hands-on task with objects, tools, materials, or the environment. Cooking, repair, assembly, craft, cleaning, building, gardening, and operating equipment are examples. Talking, slides, screens, gaming, static scenes, incidental gestures, and passive product display are excluded. Instructional narration is neither required nor sufficient; the action must be visible. The exact question and two choice strings live in [`bvd_jev/policy.py`](../bvd_jev/policy.py).
+## What counts as action?
 
-The model scores `ACTION` against `NON_ACTION`. The BVD policy maps the resulting `p_action` to a label:
+The [BVD question](../bvd_jev/policy.py) asks for **substantial, visible,
+goal-directed physical action**. A person should interact with objects, tools,
+materials, or the environment. Cooking, repair, assembly, craft, cleaning,
+building, gardening, and equipment use are examples.
+
+Talking, slides, screens, gaming, static scenes, and incidental gestures do not
+qualify. An instructional title alone is insufficient. A mixed clip can qualify
+when it contains a substantial action sequence.
+
+The model scores `ACTION` against `NON_ACTION`. The BVD adapter turns its
+`p_action` score into a review label:
 
 | `p_action` | Label |
 | ---: | --- |
-| Below 0.35 | `NON_ACTION` |
-| 0.35 through 0.65 | `UNCERTAIN` |
-| Above 0.65 | `ACTION` |
+| `< 0.35` | `NON_ACTION` |
+| `0.35–0.65` | `UNCERTAIN` |
+| `> 0.65` | `ACTION` |
 
-These are review thresholds, **not calibrated probabilities of ground truth**. Each JSONL result also records sampled frames, visual tokens, source location, timing, and whether native boundary re-scoring ran. A clip-level `ACTION` label does not give action start/end times. Splitting long videos into windows is a separate dataset policy.
+These thresholds are a filtering policy, not calibrated probabilities of truth.
+The label covers the clip as a whole. It does not identify action start and end
+times.
 
-## BVD pools and the pilot
+## Input and output
 
-[LAION describes](https://projects.laion.ai/bvd/download.html) BVD-V-55M as scene clips from **2.4 million randomly sampled source videos** in BVD-RAW. Scene detection and lightweight filtering choose the clips. BVD-RAW contains about **80 million videos and 13.5 million source-video hours**; the 55M clips are not random moments from those videos.
+The CLI accepts an MP4, a directory, a TAR shard, or a JSON/JSONL manifest.
+For clips already stored in BVD TARs, a manifest row can point to the video
+bytes directly:
 
-Our local index sums to **168,117 scene-interval hours** across 55,233,640 BVD-V records. A 10,000-clip *caption-based* pilot estimated **53,000–87,000 candidate action-containing clip hours** across those records, depending on whether uncertain captions are included after a small review. This is a search estimate, not a visually verified action-hour count: selected clips can contain non-action time, and captions can miss action. Scaling by the RAW-to-2.4M source-video ratio suggests **roughly 1.8–2.9 million candidate scene hours** if comparable scene extraction and action yield hold across RAW. RAW includes the BVD-V sources, so the estimates are not additive.
+```json
+{"id":"clip-1","source_tar":"/path/to/shard.tar","source_byte_offset":123456,"bytes":987654}
+```
 
-A production yield estimate needs a random visual audit across source videos, durations, categories, and languages, followed by calibration of precision, recall, and the fraction of each accepted clip occupied by action. Use the BVD CLI on already downloaded TAR offsets where available; URL metadata alone does not supply video pixels.
+Each output row includes `label`, `p_action`, `frames`, `visual_tokens`, source
+location, stage timing, and whether boundary re-scoring ran. The CLI writes run
+metadata beside the JSONL output and checks it before `--resume`.
+
+## What could BVD yield?
+
+[LAION-BVD](https://projects.laion.ai/bvd/download.html) made BVD-V-55M from
+scene clips in **2.4 million randomly selected BVD-RAW source videos**. Scene
+detection and filtering choose the clips. The source videos are random; the
+55 million clips are not random time windows.
+
+| Pool | Available duration | Candidate action-containing clip hours |
+| --- | ---: | ---: |
+| BVD-V-55M local scene index | 168,117 hours | 53,000–87,000 hours |
+| Full BVD-RAW | 13.5 million source-video hours | 1.8–2.9 million hours, extrapolated |
+
+The BVD-V range comes from a 10,000-clip **caption-based** pilot, not a full
+visual audit. The RAW range assumes similar yield after comparable scene
+extraction across the full pool. RAW includes the BVD-V sources, so the rows are
+not additive. Both ranges count *candidate clip duration*, including any
+non-action portions inside accepted clips.
+
+Before a large extraction, audit random videos across duration, category, and
+language. Measure precision, recall, and the fraction of accepted clip time
+that actually shows action.

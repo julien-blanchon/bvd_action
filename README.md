@@ -1,45 +1,121 @@
-# VideoJev batch inference for BVD
+# Fast video decisions with VideoJev
 
-`jev_batch` runs batched VideoJev choice inference on MP4 files, sampled RGB frames, prepared patches, or previously encoded vision features. `bvd_jev` adds the BVD action question, labels, TAR input, a CLI, and a small review UI.
+This project scores predefined answers about videos. Its first use is finding
+hands-on action in LAION-BVD, but the inference library accepts other questions
+and other video datasets.
 
-![Inference pipeline](docs/assets/pipeline.svg)
+- **`jev_batch`** prepares videos and runs batched [VideoJev-4B](https://huggingface.co/ZhuYuhan/VideoJev-4B) choice inference.
+- **`bvd_jev`** adds the BVD action question, review thresholds, TAR input, a CLI, and a small UI.
 
-## Run
+![Video preparation, inference, and BVD labels](docs/assets/pipeline.svg)
 
-`pyproject.toml` records the Python 3.12/aarch64 CUDA dependencies and provides `bvd-jev` and `bvd-jev-ui` entry points. Download the VideoJev checkpoint separately. On the tested GH200, the existing environment and checkpoint are under `/e/scratch/reformo/blanchon1/bvd_action_runtime/`. To use an existing compatible environment without changing it:
+## Why a decision model?
+
+Give VideoJev a video, a question, and candidate answers. It scores the candidates
+directly. It does not generate a caption or reason through output tokens.
+
+| | Generative video LLM | VideoJev decision |
+| --- | --- | --- |
+| Output | Generates answer tokens one after another | Scores supplied choices in one forward pass |
+| Main work | Video encoding, input prefill, then answer decoding | Video encoding and input prefill, then a small scoring head |
+| Good fit | Open-ended descriptions | Known labels and dataset filters |
+
+The expensive video representation can be reused. VideoJev's native **joint** mode
+also places several questions after one video prefix when they fit the context.
+Extra labels still add question tokens and scoring work. They are **cheaper than
+independent full video passes, not free**. Our fastest *multi-video* batch path
+currently scores one question at a time; its measured throughput should not be
+multiplied by the number of labels. See [architecture](docs/architecture.md).
+
+## Classify BVD action
+
+On the tested GH200, use the existing Python 3.12 environment and downloaded 4B
+checkpoint. Replace the paths for another machine:
 
 ```bash
-export UV_PROJECT_ENVIRONMENT=/path/to/compatible/venv
-export VIDEOJEV_MODEL=/path/to/VideoJev-4B
+export UV_PROJECT_ENVIRONMENT=/e/scratch/reformo/blanchon1/bvd_action_runtime/venv
+export VIDEOJEV_MODEL=/e/scratch/reformo/blanchon1/bvd_action_runtime/model
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
-uv run --no-sync --offline python -m bvd_jev.cli path/to/video.mp4 \
-  --output /tmp/bvd-actions.jsonl --fuse-vision-rope
+
+uv run --no-sync --offline python -m bvd_jev.cli /path/to/clips \
+  --output /path/to/actions.jsonl --fuse-vision-rope
 ```
 
-The input can be an MP4, directory of MP4/TAR files, TAR shard, or JSON/JSONL manifest. A manifest row can provide `path`, or `source_tar`, `source_byte_offset`, and `bytes` for an already downloaded BVD clip. Use `--resume` to continue a run and `--num-shards`/`--shard-index` to distribute work across GPUs. Run `uv run --no-sync --offline python -m bvd_jev.cli --help` for all settings.
+`/path/to/clips` may be one MP4, a directory, a TAR shard, or a JSON/JSONL
+manifest. For BVD TARs, a manifest row can contain `source_tar`,
+`source_byte_offset`, and `bytes`; the videos do not need to be downloaded again
+if their TARs are already available. Use `--resume` to continue an output file,
+or `--num-shards` and `--shard-index` to run independent GPU processes.
 
-For the local review UI:
+The output contains `p_action` and one of `ACTION`, `NON_ACTION`, or `UNCERTAIN`.
+The default review band is 0.35–0.65. The label describes the **whole clip**;
+it does not mark action timestamps. See the [BVD policy](docs/bvd.md) for the
+exact question and output fields.
+
+For an interactive check, start the UI and open `/ui`:
 
 ```bash
-uv run --no-sync --offline python -m uvicorn bvd_jev.serve:app --host 127.0.0.1 --port 8000
+uv run --no-sync --offline python -m bvd_jev.serve --host 127.0.0.1 --port 8000
 ```
 
-Open `/ui`. The optional local example videos appear there when present. This public code repository does not distribute BVD media. Apache-2.0 covers this code; model weights and datasets retain their own terms.
+## Ask other questions
 
-## Library
+Use `ChoiceQuestion` for filters such as tool use, indoor/outdoor setting,
+visible people, cooking, or instructional demonstrations. For **one question
+across many videos**, `BatchRunner` uses the fast batch path:
 
 ```python
-from jev_batch import BatchRunner, ChoiceQuestion, Item, Sampling, VideoJevEngine
+from pathlib import Path
+from jev_batch import BatchRunner, ChoiceQuestion, Item, VideoJevEngine
 
 engine = VideoJevEngine("/path/to/VideoJev-4B")
-question = ChoiceQuestion("What is visible?", ("A person handles an object", "No person handles an object"))
-items = [Item("clip-1", "clip.mp4")]
-for item, result in BatchRunner(engine, question, sampling=Sampling(fps=1, max_frames=16)).run(items):
-    print(item.id, result["probabilities"])
+question = ChoiceQuestion(
+    "Does a person visibly use a physical tool?",
+    ("YES: a tool is used on an object", "NO: no tool use is visible"),
+    id="tool_use",
+)
+items = (Item(path.name, path) for path in Path("/path/to/clips").glob("*.mp4"))
+for item, prediction in BatchRunner(engine, question).run(items):
+    print(item.id, prediction["probabilities"])
 ```
 
-The library also accepts `VideoFrames` for already sampled NumPy or Torch RGB frames. `engine.prepare(...)` and `engine.encode(...)` let callers reuse vision features for more than one question. See [architecture](docs/architecture.md) for the data path and [BVD policy](docs/bvd.md) for the action definition.
+For **several questions about one video**, `predict_questions` uses VideoJev's
+native joint mode. It encodes the video once and shares the video prefix when
+the questions fit the context:
 
-## Measured speed
+```python
+from bvd_jev.policy import ACTION_QUESTION
+from jev_batch import ChoiceQuestion, Sampling, VideoJevEngine
 
-On a local GH200, the VideoJev-4B pipeline processed **11.59 clips/s and 171 sampled frames/s** on a 1,000-clip holdout. Warm 300-clip runs of the consolidated code processed **12.06–12.68 clips/s**, about **179–188 sampled frames/s**. These are end-to-end TAR-to-result rates, excluding model load, at 1 sampled FPS and at most 16 frames per clip. See [measurements](docs/measurements.md) for evidence and limits.
+engine = VideoJevEngine("/path/to/VideoJev-4B")
+questions = [
+    ACTION_QUESTION,
+    ChoiceQuestion("Is a hand tool visibly used?", ("YES", "NO"), id="tool"),
+    ChoiceQuestion("Is the scene outdoors?", ("YES", "NO"), id="outdoors"),
+]
+for result in engine.predict_questions("clip.mp4", questions, Sampling(fps=1, max_frames=16)):
+    print(result["id"], result["answer"], result["probabilities"])
+```
+
+This native joint path is useful for exploring labels. The measured bulk
+throughput below is for the single-question batch path; joint multi-question
+throughput on a dataset has not been benchmarked here.
+
+## Measured throughput
+
+One local GH200, BVD TAR clips, 1 sampled FPS, at most 16 frames per clip.
+Rates include TAR reading, decode, preprocessing, GPU inference, and output.
+Model loading is excluded.
+
+| Model and run | Clips | Clips/s | Sampled frames/s |
+| --- | ---: | ---: | ---: |
+| 4B, optimized holdout | 1,000 | 11.59 | 171 |
+| 4B, warm consolidated runs | 300 | 12.06–12.68 | 179–188 |
+| 35B-A3B, padded batch | 300 | 5.68 | 84 |
+
+These are historical measurements before the latest typing and documentation
+changes. They are not a prediction for GB200 nodes or for extra questions.
+[Measurement details](docs/measurements.md) record the settings and limits.
+
+The code is Apache-2.0. Model weights and BVD media keep their own terms;
+this repository does not redistribute BVD videos.

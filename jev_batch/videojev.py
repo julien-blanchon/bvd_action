@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import time
+from collections.abc import Sequence
 from pathlib import Path
 
 from .types import (ChoiceQuestion, EncodedVideo, PreparedVideo,
@@ -201,3 +202,25 @@ class VideoJevEngine:
         prepared = self.prepare(source, sampling)
         return self.predict_prepared_batch([prepared], question, sampling,
                                            decision_batch_size=1, guard=guard)[0]
+
+    def predict_questions(
+        self, source: VideoInput, questions: Sequence[ChoiceQuestion],
+        sampling: Sampling = Sampling(),
+    ) -> list[Prediction]:
+        """Score several questions over one video with VideoJev's native joint path.
+
+        The visual encoder runs once. Questions that fit the context share a
+        language-model forward pass; larger sets are split by VideoJev.
+        """
+        if not questions:
+            raise ValueError("Provide at least one choice question")
+        if len({question.id for question in questions}) != len(questions):
+            raise ValueError("Choice question IDs must be unique")
+        prepared = self.prepare(source, sampling)
+        encoded = (prepared if isinstance(prepared, EncodedVideo)
+                   else self.encode([prepared])[0])
+        return self.model.predict_features(
+            self.processor, encoded.features, encoded.record,
+            [question.native() for question in questions],
+            context=sampling.context,
+        )

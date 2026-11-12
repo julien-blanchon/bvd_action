@@ -1,40 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="390" viewBox="0 0 1160 390" role="img" aria-labelledby="title desc">
-  <title id="title">VideoJev batch inference pipeline</title>
-  <desc id="desc">MP4 or BVD TAR input moves through CPU video preparation, bounded GPU vision batches, packed choice scoring, optional boundary rescore, and JSONL output. Already encoded features can enter before scoring.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" role="img" aria-labelledby="title desc">
+  <title id="title">VideoJev inference paths</title>
+  <desc id="desc">A video is decoded, sampled, and encoded once. The fast batch path scores one question across many clips. The native joint path scores several questions about one clip using a shared video prefix. Both return candidate scores without generating answer tokens.</desc>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#51627a"/></marker>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#55657d"/></marker>
     <style>
-      .bg{fill:#f8fafc}.box{fill:#fff;stroke:#b6c5d7;stroke-width:1.5}.gpu{fill:#ebf2ff;stroke:#7e9dd0;stroke-width:1.5}.bvd{fill:#f1f9ed;stroke:#8eae83;stroke-width:1.5}.line{stroke:#51627a;stroke-width:2;fill:none;marker-end:url(#arrow)}.dash{stroke-dasharray:6 5}.label{font:600 16px system-ui,sans-serif;fill:#17243b}.small{font:13px system-ui,sans-serif;fill:#53647b}.heading{font:600 19px system-ui,sans-serif;fill:#17243b}
+      .bg{fill:#f8fafc}.input{fill:#fff;stroke:#bac9d8;stroke-width:1.5}.core{fill:#eaf1ff;stroke:#7d9dcc;stroke-width:1.5}.fast{fill:#eaf4ff;stroke:#78a2ce;stroke-width:1.5}.joint{fill:#f1f5e9;stroke:#96ad7c;stroke-width:1.5}.out{fill:#fff;stroke:#bac9d8;stroke-width:1.5}.line{stroke:#55657d;stroke-width:2;fill:none;marker-end:url(#arrow)}.stem{stroke:#55657d;stroke-width:2;fill:none}.title{font:600 20px system-ui,sans-serif;fill:#1b2b43}.label{font:600 16px system-ui,sans-serif;fill:#1b2b43}.small{font:13px system-ui,sans-serif;fill:#53647a}
     </style>
   </defs>
-  <rect class="bg" width="1160" height="390" rx="18"/>
-  <text class="heading" x="32" y="37">One decision per clip · sampled frames are shared by the choice scorer</text>
-  <rect class="box" x="30" y="90" width="180" height="104" rx="12"/>
-  <text class="label" x="48" y="124">Input</text>
-  <text class="small" x="48" y="150">MP4 · BVD TAR offset</text>
-  <text class="small" x="48" y="171">RGB tensor · prepared</text>
-  <rect class="box" x="248" y="90" width="190" height="104" rx="12"/>
-  <text class="label" x="266" y="124">CPU preparation</text>
-  <text class="small" x="266" y="150">Decode · sample · resize</text>
-  <text class="small" x="266" y="171">Bounded worker queue</text>
-  <rect class="gpu" x="476" y="90" width="190" height="104" rx="12"/>
-  <text class="label" x="494" y="124">GPU vision encoder</text>
-  <text class="small" x="494" y="150">Batch by clip count</text>
-  <text class="small" x="494" y="171">and visual-token budget</text>
-  <rect class="gpu" x="704" y="90" width="190" height="104" rx="12"/>
-  <text class="label" x="722" y="124">Choice scorer</text>
-  <text class="small" x="722" y="150">Packed decision batch</text>
-  <text class="small" x="722" y="171">One shared question</text>
-  <rect class="bvd" x="932" y="90" width="198" height="104" rx="12"/>
-  <text class="label" x="950" y="124">BVD adapter</text>
-  <text class="small" x="950" y="150">Thresholds · JSONL</text>
-  <text class="small" x="950" y="171">Resume · GPU sharding</text>
-  <path class="line" d="M210 142 H246"/><path class="line" d="M438 142 H474"/><path class="line" d="M666 142 H702"/><path class="line" d="M894 142 H930"/>
-  <rect class="box" x="476" y="252" width="190" height="87" rx="12"/>
-  <text class="label" x="494" y="286">Encoded features</text>
-  <text class="small" x="494" y="311">Reusable across questions</text>
-  <path class="line" d="M571 194 V250"/><path class="line" d="M666 295 H798 V196"/>
-  <text class="small" x="704" y="226">Near a label boundary:</text>
-  <text class="small" x="704" y="246">rescore with native path</text>
-  <text class="small" x="32" y="367">jev_batch owns inference; bvd_jev owns the action policy and BVD-specific I/O.</text>
+  <rect class="bg" width="1200" height="390" rx="18"/>
+  <text class="title" x="30" y="40">One video representation, direct choice scores</text>
+  <rect class="input" x="30" y="120" width="180" height="100" rx="12"/>
+  <text class="label" x="48" y="155">Video input</text>
+  <text class="small" x="48" y="180">MP4 · BVD TAR</text>
+  <text class="small" x="48" y="201">RGB tensor</text>
+  <rect class="input" x="250" y="120" width="180" height="100" rx="12"/>
+  <text class="label" x="268" y="155">Prepare frames</text>
+  <text class="small" x="268" y="180">Decode · sample</text>
+  <text class="small" x="268" y="201">Bounded CPU queue</text>
+  <rect class="core" x="470" y="120" width="195" height="100" rx="12"/>
+  <text class="label" x="488" y="155">Vision encode</text>
+  <text class="small" x="488" y="180">Features shared</text>
+  <text class="small" x="488" y="201">across questions</text>
+  <path class="line" d="M210 170 H248"/><path class="line" d="M430 170 H468"/>
+  <path class="stem" d="M665 170 H704 V111"/><path class="stem" d="M704 170 V246"/>
+  <rect class="fast" x="745" y="70" width="235" height="82" rx="12"/>
+  <text class="label" x="763" y="102">Fast batch path</text>
+  <text class="small" x="763" y="127">One question × many clips</text>
+  <rect class="joint" x="745" y="205" width="235" height="82" rx="12"/>
+  <text class="label" x="763" y="237">Native joint path</text>
+  <text class="small" x="763" y="262">Many questions × one clip</text>
+  <path class="line" d="M704 111 H743"/><path class="line" d="M704 246 H743"/>
+  <rect class="out" x="1020" y="70" width="150" height="82" rx="12"/>
+  <text class="label" x="1038" y="102">Action label</text>
+  <text class="small" x="1038" y="127">BVD adapter</text>
+  <rect class="out" x="1020" y="205" width="150" height="82" rx="12"/>
+  <text class="label" x="1038" y="237">Choice scores</text>
+  <text class="small" x="1038" y="262">Action · tool · scene</text>
+  <path class="line" d="M980 111 H1018"/><path class="line" d="M980 246 H1018"/>
+  <text class="small" x="30" y="352">Both paths avoid answer-token generation. Joint questions share video work; each added question still adds text and scoring compute.</text>
 </svg>

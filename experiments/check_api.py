@@ -46,6 +46,11 @@ def main():
     assert len(first["probabilities"]) == 3
     assert max(abs(a - b) for a, b in zip(first["probabilities"],
                                           reused["probabilities"])) < 1e-6
+    second_question = ChoiceQuestion(
+        "Is the scene indoors or outdoors?", ("Indoors", "Outdoors"), id="setting")
+    joint = engine.predict_questions(encoded, [question, second_question], sampling)
+    assert [row["id"] for row in joint] == ["choice", "setting"]
+    assert [len(row["probabilities"]) for row in joint] == [3, 2]
     item, batched = next(BatchRunner(engine, question, sampling=sampling).run(
         [Item("frames", decoded)]))
     assert item.id == "frames" and len(batched["probabilities"]) == 3
@@ -55,7 +60,7 @@ def main():
         [Item("first", decoded), Item("second", decoded)]))
     assert len(multi) == 2
     assert all(len(result["probabilities"]) == 3 for _, result in multi)
-    print("MP4, NumPy frames, Torch frames, prepared patches and reused features: OK")
+    print("MP4, NumPy/Torch frames, batching, joint questions and feature reuse: OK")
 
 
 if __name__ == "__main__":
