@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.gradio/
+outputs/
+runs/
+*.log
+*.tar
+*.tar.gz
+
+# Local BVD media and source-location records are not redistributed.
+/examples/*.mp4
+/examples/*.png
+/examples/manifest.json

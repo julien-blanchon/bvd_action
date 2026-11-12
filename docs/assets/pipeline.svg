@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="390" viewBox="0 0 1160 390" role="img" aria-labelledby="title desc">
+  <title id="title">VideoJev batch inference pipeline</title>
+  <desc id="desc">MP4 or BVD TAR input moves through CPU video preparation, bounded GPU vision batches, packed choice scoring, optional boundary rescore, and JSONL output. Already encoded features can enter before scoring.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#51627a"/></marker>
+    <style>
+      .bg{fill:#f8fafc}.box{fill:#fff;stroke:#b6c5d7;stroke-width:1.5}.gpu{fill:#ebf2ff;stroke:#7e9dd0;stroke-width:1.5}.bvd{fill:#f1f9ed;stroke:#8eae83;stroke-width:1.5}.line{stroke:#51627a;stroke-width:2;fill:none;marker-end:url(#arrow)}.dash{stroke-dasharray:6 5}.label{font:600 16px system-ui,sans-serif;fill:#17243b}.small{font:13px system-ui,sans-serif;fill:#53647b}.heading{font:600 19px system-ui,sans-serif;fill:#17243b}
+    </style>
+  </defs>
+  <rect class="bg" width="1160" height="390" rx="18"/>
+  <text class="heading" x="32" y="37">One decision per clip · sampled frames are shared by the choice scorer</text>
+  <rect class="box" x="30" y="90" width="180" height="104" rx="12"/>
+  <text class="label" x="48" y="124">Input</text>
+  <text class="small" x="48" y="150">MP4 · BVD TAR offset</text>
+  <text class="small" x="48" y="171">RGB tensor · prepared</text>
+  <rect class="box" x="248" y="90" width="190" height="104" rx="12"/>
+  <text class="label" x="266" y="124">CPU preparation</text>
+  <text class="small" x="266" y="150">Decode · sample · resize</text>
+  <text class="small" x="266" y="171">Bounded worker queue</text>
+  <rect class="gpu" x="476" y="90" width="190" height="104" rx="12"/>
+  <text class="label" x="494" y="124">GPU vision encoder</text>
+  <text class="small" x="494" y="150">Batch by clip count</text>
+  <text class="small" x="494" y="171">and visual-token budget</text>
+  <rect class="gpu" x="704" y="90" width="190" height="104" rx="12"/>
+  <text class="label" x="722" y="124">Choice scorer</text>
+  <text class="small" x="722" y="150">Packed decision batch</text>
+  <text class="small" x="722" y="171">One shared question</text>
+  <rect class="bvd" x="932" y="90" width="198" height="104" rx="12"/>
+  <text class="label" x="950" y="124">BVD adapter</text>
+  <text class="small" x="950" y="150">Thresholds · JSONL</text>
+  <text class="small" x="950" y="171">Resume · GPU sharding</text>
+  <path class="line" d="M210 142 H246"/><path class="line" d="M438 142 H474"/><path class="line" d="M666 142 H702"/><path class="line" d="M894 142 H930"/>
+  <rect class="box" x="476" y="252" width="190" height="87" rx="12"/>
+  <text class="label" x="494" y="286">Encoded features</text>
+  <text class="small" x="494" y="311">Reusable across questions</text>
+  <path class="line" d="M571 194 V250"/><path class="line" d="M666 295 H798 V196"/>
+  <text class="small" x="704" y="226">Near a label boundary:</text>
+  <text class="small" x="704" y="246">rescore with native path</text>
+  <text class="small" x="32" y="367">jev_batch owns inference; bvd_jev owns the action policy and BVD-specific I/O.</text>
+</svg>

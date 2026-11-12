@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="350" viewBox="0 0 860 350" role="img" aria-labelledby="title desc">
+  <title id="title">Measured sampled-frame throughput on one GH200</title>
+  <desc id="desc">VideoJev-4B processes 171 sampled frames per second on a 1000-clip holdout, 179 to 188 on warm 300-clip runs, and VideoJev-35B-A3B processes 84 on a separate 300-clip test.</desc>
+  <defs><style>.bg{fill:#f8fafc}.title{font:600 20px system-ui,sans-serif;fill:#17243b}.label{font:15px system-ui,sans-serif;fill:#17243b}.value{font:600 16px system-ui,sans-serif;fill:#17243b}.note{font:13px system-ui,sans-serif;fill:#5a6a80}.grid{stroke:#d8e1ed;stroke-width:1}.bar4{fill:#5f81c3}.bar35{fill:#90a2bd}</style></defs>
+  <rect class="bg" width="860" height="350" rx="18"/>
+  <text class="title" x="30" y="40">Sampled frames processed per second · one GH200</text>
+  <text class="label" x="30" y="101">4B · 1,000 clips</text><rect class="bar4" x="240" y="78" width="428" height="28" rx="5"/><text class="value" x="680" y="99">171</text>
+  <text class="label" x="30" y="162">4B · warm 300 clips</text><rect class="bar4" x="240" y="139" width="448" height="28" rx="5"/><rect x="688" y="139" width="22" height="28" fill="#adc1e8" rx="3"/><text class="value" x="722" y="160">179–188</text>
+  <text class="label" x="30" y="223">35B · 300 clips</text><rect class="bar35" x="240" y="200" width="210" height="28" rx="5"/><text class="value" x="462" y="221">84</text>
+  <path class="grid" d="M240 266 H740"/>
+  <text class="note" x="240" y="286">0</text><text class="note" x="359" y="286">50</text><text class="note" x="482" y="286">100</text><text class="note" x="607" y="286">150</text><text class="note" x="729" y="286">200</text>
+  <text class="note" x="30" y="325">TAR to result, excluding model load; 1 sampled FPS, at most 16 frames per clip.</text>
+</svg>
